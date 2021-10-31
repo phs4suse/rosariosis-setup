@@ -1,0 +1,83 @@
+zypper in -y postgresql13-server php postgresql13-contrib
+ypper in -y php7-pgsql php7-gettext php7-mbstring php7-gd php7-curl php7-xmlrpc php7-xml php7-zip
+zypper in -y php7-pgsql php7-gettext php7-mbstring php7-gd php7-curl php7-xmlrpc php7-zip
+zypper se php
+zypper in -y nginx
+zypper in -y git
+zypper in -y php7-fpm
+cat /etc/os-release
+systemctl enable --now postgresql
+systemctl status postgresql
+sudo -u postgres psql -c "SELECT version();"
+sudo -u postgres psql
+cd /var/lib/pgsql/data/
+cp pg_hba.conf pg_hba.conf.orig
+wget https://gist.githubusercontent.com/francoisjacquet/9570899/raw/094dd9da86fd9423023e2b16fd5d38a58364ec38/pg_hba.conf
+systemctl restart postgresql.service
+systemctl status postgresql.service
+cd /srv/www/htdocs/
+git clone https://gitlab.com/francoisjacquet/rosariosis.git
+cd rosariosis/
+cp config.inc.sample.php config.inc.php
+vi config.inc.php                   ###### edit the appropriate fields  -- see below line 41
+cd /etc/nginx/conf.d/
+vi rosariosis.conf                  ######## see below  -- line 54
+nginx -t
+systemctl enable --now nginx
+systemctl status nginx
+systemctl enable --now php-fpm
+systemctl status php-fpm
+cd /etc/php7/fpm/
+cp php-fpm.conf.default php-fpm.conf
+cd php-fpm.d/
+cp www.conf.default www.conf
+vi /etc/php7/fpm/php-fpm.d/www.conf             ######## see below  -- line 76
+systemctl restart php-fpm
+systemctl status php-fpm
+systemctl restart nginx
+
+
+
+/srv/www/htdocs/rosariosis/config.inc.php
+...
+// Database username.
+$DatabaseUsername = 'rosariosis_user';
+
+// Database password.
+$DatabasePassword = 'tux';
+
+// Database name.
+$DatabaseName = 'rosariosis_db';
+...
+
+
+/etc/nginx/conf.d/rosariosis.conf
+server {
+ listen       8080;
+ # replace with your domain
+ #server_name  example.com www.example.com;
+ root         /srv/www/htdocs/rosariosis;
+
+ #access_log /var/log/somewhere;
+ #error_log /var/log/somewhere;
+ location / {
+ }
+
+ location ~* \.php$ {
+ # With php-fpm unix sockets
+ fastcgi_pass unix:/var/run/php-fpm/php-fpm.sock;
+ include         fastcgi_params;
+ fastcgi_param   SCRIPT_FILENAME    $document_root$fastcgi_script_name;
+ fastcgi_param   SCRIPT_NAME        $fastcgi_script_name;
+ }
+}
+
+
+/etc/php7/fpm/www.conf
+Change  -- listen = 127.0.0.1:9000
+To      -- listen = /var/run/php-fpm/php-fpm.sock
+
+Change  -- listen.owner = wwwrun
+           listen.group = www
+To      -- listen.owner = nginx
+           listen.group = nginx
